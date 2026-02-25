@@ -11,13 +11,13 @@ fi
 
 GATEWAY_HOST=$(jq -r '.gateway_host' "$CONFIG_PATH")
 GATEWAY_PORT=$(jq -r '.gateway_port' "$CONFIG_PATH")
+GATEWAY_TOKEN=$(jq -r '.gateway_token // empty' "$CONFIG_PATH")
 DISPLAY_NAME=$(jq -r '.display_name' "$CONFIG_PATH")
 SSH_USER=$(jq -r '.ssh_user // empty' "$CONFIG_PATH")
 
 # Validate required config
 if [ -z "$GATEWAY_HOST" ] || [ "$GATEWAY_HOST" = "null" ]; then
     echo "ERROR: gateway_host is required. Set it in the addon configuration."
-    echo "       Go to Settings → Add-ons → OpenClaw Node → Configuration"
     exit 1
 fi
 
@@ -25,32 +25,50 @@ fi
 export OPENCLAW_STATE_DIR="/data/openclaw"
 mkdir -p "$OPENCLAW_STATE_DIR"
 
+# Write gateway config for the node to read
+# The node reads token from its config file at $OPENCLAW_STATE_DIR/openclaw.json
+if [ -n "$GATEWAY_TOKEN" ]; then
+    # Read existing config or start fresh
+    if [ -f "$OPENCLAW_STATE_DIR/openclaw.json" ]; then
+        EXISTING=$(cat "$OPENCLAW_STATE_DIR/openclaw.json")
+    else
+        EXISTING="{}"
+    fi
+    
+    # Update gateway auth token
+    echo "$EXISTING" | jq --arg token "$GATEWAY_TOKEN" '
+        .gateway.auth.mode = "token" |
+        .gateway.auth.token = $token
+    ' > "$OPENCLAW_STATE_DIR/openclaw.json"
+fi
+
 # SSH key directory (persisted across restarts)
 SSH_DIR="/data/openclaw/.ssh"
 mkdir -p "$SSH_DIR"
 chmod 700 "$SSH_DIR"
 
-# Generate SSH key if it doesn't exist
-if [ ! -f "$SSH_DIR/id_ed25519" ]; then
-    echo "Generating SSH key pair..."
-    ssh-keygen -t ed25519 -f "$SSH_DIR/id_ed25519" -N "" -C "openclaw-ha-addon"
-    echo ""
-    echo "=========================================="
-    echo "  SSH KEY SETUP REQUIRED"
-    echo "=========================================="
-    echo "  Add this public key to ${GATEWAY_HOST}:"
-    echo ""
-    cat "$SSH_DIR/id_ed25519.pub"
-    echo ""
-    echo "  Run on the gateway host:"
-    echo "    echo '$(cat "$SSH_DIR/id_ed25519.pub")' >> ~/.ssh/authorized_keys"
-    echo "=========================================="
-    echo ""
-fi
-
 # Determine connection method
 if [ -n "$SSH_USER" ] && [ "$SSH_USER" != "null" ]; then
-    # SSH tunnel mode — connect via localhost after tunneling
+    # Generate SSH key if it doesn't exist
+    if [ ! -f "$SSH_DIR/id_ed25519" ]; then
+        echo "Generating SSH key pair..."
+        ssh-keygen -t ed25519 -f "$SSH_DIR/id_ed25519" -N "" -C "openclaw-ha-addon"
+        echo ""
+        echo "=========================================="
+        echo "  SSH KEY SETUP REQUIRED"
+        echo "=========================================="
+        echo "  Add this public key to ${GATEWAY_HOST}:"
+        echo ""
+        cat "$SSH_DIR/id_ed25519.pub"
+        echo ""
+        echo "  Run on the gateway host:"
+        echo "    echo '$(cat "$SSH_DIR/id_ed25519.pub")' >> ~/.ssh/authorized_keys"
+        echo "=========================================="
+        echo ""
+        echo "After adding the key, restart this addon."
+        # Don't exit — let it try and fail, user will see the SSH error
+    fi
+
     LOCAL_PORT=18789
     
     echo "=========================================="
@@ -58,6 +76,7 @@ if [ -n "$SSH_USER" ] && [ "$SSH_USER" != "null" ]; then
     echo "=========================================="
     echo "  Gateway:  ${GATEWAY_HOST}:${GATEWAY_PORT} (via SSH tunnel)"
     echo "  SSH User: ${SSH_USER}"
+    echo "  Token:    ${GATEWAY_TOKEN:+(set)}"
     echo "  Name:     ${DISPLAY_NAME}"
     echo "  Config:   /config/ (mapped rw)"
     echo "  HA API:   available via SUPERVISOR_TOKEN"
@@ -87,14 +106,11 @@ else
     echo "  OpenClaw Node for Home Assistant"
     echo "=========================================="
     echo "  Gateway:  ${GATEWAY_HOST}:${GATEWAY_PORT} (direct)"
+    echo "  Token:    ${GATEWAY_TOKEN:+(set)}"
     echo "  Name:     ${DISPLAY_NAME}"
     echo "  Config:   /config/ (mapped rw)"
     echo "  HA API:   available via SUPERVISOR_TOKEN"
     echo "=========================================="
-    echo ""
-    echo "WARNING: Direct connection requires the gateway to be on localhost"
-    echo "         or use TLS. Set ssh_user in config to connect via SSH tunnel."
-    echo ""
     
     exec openclaw node run \
         --host "$GATEWAY_HOST" \

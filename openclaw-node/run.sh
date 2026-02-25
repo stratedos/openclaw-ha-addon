@@ -25,6 +25,40 @@ fi
 export OPENCLAW_STATE_DIR="/data/openclaw"
 mkdir -p "$OPENCLAW_STATE_DIR"
 
+# Save SUPERVISOR_TOKEN so exec'd commands can access it
+# HA injects this into the addon process but child execs may not inherit it
+if [ -n "$SUPERVISOR_TOKEN" ]; then
+    echo "$SUPERVISOR_TOKEN" > /tmp/.supervisor_token
+    chmod 600 /tmp/.supervisor_token
+fi
+
+# Create a helper script that wraps `ha` CLI via the Supervisor REST API
+cat > /usr/local/bin/ha-api <<'HAEOF'
+#!/usr/bin/env bash
+# Wrapper to call HA Supervisor API (replacement for `ha` CLI in addon containers)
+TOKEN=$(cat /tmp/.supervisor_token 2>/dev/null)
+if [ -z "$TOKEN" ]; then
+    echo "ERROR: SUPERVISOR_TOKEN not available"
+    exit 1
+fi
+ENDPOINT="${1:-}"
+METHOD="${2:-GET}"
+shift 2 2>/dev/null || true
+case "$ENDPOINT" in
+    core/restart)  curl -sf -X POST -H "Authorization: Bearer $TOKEN" http://supervisor/core/api/services/homeassistant/restart ;;
+    core/stop)     curl -sf -X POST -H "Authorization: Bearer $TOKEN" http://supervisor/core/api/services/homeassistant/stop ;;
+    core/check)    curl -sf -X POST -H "Authorization: Bearer $TOKEN" http://supervisor/core/api/config/core/check ;;
+    core/info)     curl -sf -H "Authorization: Bearer $TOKEN" http://supervisor/core/info ;;
+    host/info)     curl -sf -H "Authorization: Bearer $TOKEN" http://supervisor/host/info ;;
+    host/reboot)   curl -sf -X POST -H "Authorization: Bearer $TOKEN" http://supervisor/host/reboot ;;
+    supervisor/info) curl -sf -H "Authorization: Bearer $TOKEN" http://supervisor/supervisor/info ;;
+    addons)        curl -sf -H "Authorization: Bearer $TOKEN" http://supervisor/addons ;;
+    backups/new)   curl -sf -X POST -H "Authorization: Bearer $TOKEN" http://supervisor/backups/new/full ;;
+    *)             curl -sf -H "Authorization: Bearer $TOKEN" "http://supervisor${ENDPOINT}" ;;
+esac
+HAEOF
+chmod +x /usr/local/bin/ha-api
+
 # Write gateway config for the node to read
 # The node reads token from its config file at $OPENCLAW_STATE_DIR/openclaw.json
 if [ -n "$GATEWAY_TOKEN" ]; then

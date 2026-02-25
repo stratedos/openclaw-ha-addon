@@ -25,11 +25,24 @@ fi
 export OPENCLAW_STATE_DIR="/data/openclaw"
 mkdir -p "$OPENCLAW_STATE_DIR"
 
-# Save SUPERVISOR_TOKEN so exec'd commands can access it
-# HA injects this into the addon process but child execs may not inherit it
+# Resolve SUPERVISOR_TOKEN — s6 stores it in container_environment files
+# With init:false, it's not automatically exported as an env var
+if [ -z "$SUPERVISOR_TOKEN" ] && [ -f /run/s6/container_environment/SUPERVISOR_TOKEN ]; then
+    SUPERVISOR_TOKEN=$(cat /run/s6/container_environment/SUPERVISOR_TOKEN)
+fi
+
+# Also check HASSIO_TOKEN (legacy name)
+if [ -z "$SUPERVISOR_TOKEN" ] && [ -f /run/s6/container_environment/HASSIO_TOKEN ]; then
+    SUPERVISOR_TOKEN=$(cat /run/s6/container_environment/HASSIO_TOKEN)
+fi
+
+# Save it so exec'd commands can access it
 if [ -n "$SUPERVISOR_TOKEN" ]; then
     echo "$SUPERVISOR_TOKEN" > /tmp/.supervisor_token
     chmod 600 /tmp/.supervisor_token
+    echo "Supervisor API token: available ✅"
+else
+    echo "WARNING: SUPERVISOR_TOKEN not found — ha-api commands won't work"
 fi
 
 # Create a helper script that wraps `ha` CLI via the Supervisor REST API

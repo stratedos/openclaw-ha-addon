@@ -5,7 +5,7 @@ FROM ${BUILD_FROM}
 
 # Install Node.js 22 from NodeSource
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash curl jq ca-certificates gnupg git \
+    bash curl jq ca-certificates gnupg git openssh-client \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \

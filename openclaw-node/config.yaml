@@ -1,6 +1,6 @@
 name: "OpenClaw Node"
-description: "Runs an OpenClaw headless node that connects to your existing gateway. Gives OpenClaw filesystem access to HA config with exec approval security."
-version: "1.0.3"
+description: "Runs an OpenClaw headless node that connects to your existing gateway via SSH tunnel. Gives OpenClaw filesystem access to HA config with exec approval security."
+version: "1.0.4"
 slug: "openclaw-node"
 url: "https://github.com/stratedos/openclaw-ha-addon"
 arch:
@@ -16,12 +16,12 @@ options:
   gateway_host: ""
   gateway_port: 18789
   display_name: "Home Assistant"
-  use_tls: false
+  ssh_user: ""
 schema:
   gateway_host: "str"
   gateway_port: "int"
   display_name: "str"
-  use_tls: "bool"
+  ssh_user: "str?"
 map:
   - config:rw
   - ssl:ro

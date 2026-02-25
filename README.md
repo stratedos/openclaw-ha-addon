@@ -26,7 +26,7 @@ A lightweight Home Assistant add-on that runs an [OpenClaw](https://openclaw.ai)
 | `gateway_host` | *(required)* | IP/hostname of your OpenClaw gateway |
 | `gateway_port` | `18789` | Gateway WebSocket port |
 | `display_name` | `Home Assistant` | How this node appears in OpenClaw |
-| `use_tls` | `false` | Use TLS for the gateway connection |
+| `ssh_user` | *(optional)* | SSH username on gateway host for secure tunnel |
 
 ## Mapped directories
 

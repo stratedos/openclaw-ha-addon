@@ -1,6 +1,6 @@
 name: "OpenClaw Node"
 description: "Runs an OpenClaw headless node that connects to your existing gateway. Gives OpenClaw filesystem access to HA config with exec approval security."
-version: "1.0.0"
+version: "1.0.1"
 slug: "openclaw-node"
 url: "https://github.com/stratedos/openclaw-ha-addon"
 arch:

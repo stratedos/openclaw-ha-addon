@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install OpenClaw globally
 RUN npm install -g openclaw@latest
 
-# Copy run script for s6-overlay
-COPY run.sh /etc/services.d/openclaw-node/run
-RUN chmod +x /etc/services.d/openclaw-node/run
+# Copy run script
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
+
+CMD [ "/run.sh" ]

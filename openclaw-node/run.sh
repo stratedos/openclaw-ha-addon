@@ -14,6 +14,8 @@ GATEWAY_PORT=$(jq -r '.gateway_port' "$CONFIG_PATH")
 GATEWAY_TOKEN=$(jq -r '.gateway_token // empty' "$CONFIG_PATH")
 DISPLAY_NAME=$(jq -r '.display_name' "$CONFIG_PATH")
 SSH_USER=$(jq -r '.ssh_user // empty' "$CONFIG_PATH")
+TLS=$(jq -r '.tls // false' "$CONFIG_PATH")
+TLS_FINGERPRINT=$(jq -r '.tls_fingerprint // empty' "$CONFIG_PATH")
 
 # Validate required config
 if [ -z "$GATEWAY_HOST" ] || [ "$GATEWAY_HOST" = "null" ]; then
@@ -143,11 +145,21 @@ if [ -n "$SSH_USER" ] && [ "$SSH_USER" != "null" ]; then
     
     echo "SSH tunnel established ✅"
     
+    # Build TLS args
+    TLS_ARGS=""
+    if [ "$TLS" = "true" ]; then
+        TLS_ARGS="--tls"
+        if [ -n "$TLS_FINGERPRINT" ] && [ "$TLS_FINGERPRINT" != "null" ]; then
+            TLS_ARGS="$TLS_ARGS --tls-fingerprint $TLS_FINGERPRINT"
+        fi
+    fi
+    
     # Connect node to localhost (through tunnel)
     exec openclaw node run \
         --host "127.0.0.1" \
         --port "$LOCAL_PORT" \
-        --display-name "$DISPLAY_NAME"
+        --display-name "$DISPLAY_NAME" \
+        $TLS_ARGS
 else
     echo "=========================================="
     echo "  OpenClaw Node for Home Assistant"
@@ -159,8 +171,18 @@ else
     echo "  HA API:   available via SUPERVISOR_TOKEN"
     echo "=========================================="
     
+    # Build TLS args
+    TLS_ARGS=""
+    if [ "$TLS" = "true" ]; then
+        TLS_ARGS="--tls"
+        if [ -n "$TLS_FINGERPRINT" ] && [ "$TLS_FINGERPRINT" != "null" ]; then
+            TLS_ARGS="$TLS_ARGS --tls-fingerprint $TLS_FINGERPRINT"
+        fi
+    fi
+    
     exec openclaw node run \
         --host "$GATEWAY_HOST" \
         --port "$GATEWAY_PORT" \
-        --display-name "$DISPLAY_NAME"
+        --display-name "$DISPLAY_NAME" \
+        $TLS_ARGS
 fi

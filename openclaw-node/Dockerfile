@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install OpenClaw globally (bust cache: 2026.3.8)
+# Install OpenClaw globally
+ARG OPENCLAW_VERSION=2026.3.8
 RUN npm install -g openclaw@latest
 
 # Copy run script

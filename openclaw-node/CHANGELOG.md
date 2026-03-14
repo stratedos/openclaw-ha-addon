@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2
+
+- Update OpenClaw to 2026.3.13
+
 ## 1.0.0
 
 - Initial release
